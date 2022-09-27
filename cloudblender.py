@@ -181,7 +181,7 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
                     description="")
 
     coords: EnumProperty(name='Coordinates',
-                         items=[('REAL', 'Real physical units','Real units (e.g.nm)'),
+                         items=[('REAL', 'Real world units','Physical units (e.g.nm)'),
                                 ('VOXELS', 'Voxels', 'Voxel coordinates.')],
                          default='VOXELS',
                          description='Coordinates in which x1, x2, ... are provided.')
@@ -256,17 +256,28 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
 
         # Make sure we're working with voxel coordinates
         if self.coords == 'REAL':
-            self.x1 = self.x1 // self.resolution[0]
-            self.x2 = self.x2 // self.resolution[0]
+            self.x1_vxl = self.x1 // self.resolution[0]
+            self.x2_vxl = self.x2 // self.resolution[0]
 
-            self.y1 = self.y1 // self.resolution[1]
-            self.y2 = self.y2 // self.resolution[1]
+            self.y1_vxl = self.y1 // self.resolution[1]
+            self.y2_vxl = self.y2 // self.resolution[1]
 
-            self.z1 = self.z1 // self.resolution[2]
-            self.z2 = self.z2 // self.resolution[2]
+            self.z1_vxl = self.z1 // self.resolution[2]
+            self.z2_vxl = self.z2 // self.resolution[2]
+        else:
+            self.x1_vxl = self.x1
+            self.x2_vxl = self.x2
+
+            self.y1_vxl = self.y1
+            self.y2_vxl = self.y2
+
+            self.z1_vxl = self.z1
+            self.z2_vxl = self.z2
 
         # Fetch the data
-        data = VOLUME[self.x1: self.x2, self.y1: self.y2, self.z1: self.z2]
+        data = VOLUME[self.x1_vxl: self.x2_vxl,
+                      self.y1_vxl: self.y2_vxl,
+                      self.z1_vxl: self.z2_vxl]
         data = np.array(data)
 
         # This won't work in edit mode
@@ -276,11 +287,11 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
 
         if self.axis == 'x':
-            depth_offset = self.x1
+            depth_offset = self.x1_vxl
         elif self.axis == 'y':
-            depth_offset = self.y1
+            depth_offset = self.y1_vxl
         elif self.axis == 'z':
-            depth_offset = self.z1
+            depth_offset = self.z1_vxl
 
         # Add slices one by one
         for i in range(data.shape[self.axis_ix]):
@@ -370,24 +381,24 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
         # Generate the plane
         if self.axis == 'x':
             vertices = np.array([
-                                 [depth, self.y1, self.z1],
-                                 [depth, self.y2, self.z1],
-                                 [depth, self.y2, self.z2],
-                                 [depth, self.y1, self.z2],
+                                 [depth, self.y1_vxl, self.z1_vxl],
+                                 [depth, self.y2_vxl, self.z1_vxl],
+                                 [depth, self.y2_vxl, self.z2_vxl],
+                                 [depth, self.y1_vxl, self.z2_vxl],
                                  ])
         elif self.axis == 'y':
             vertices = np.array([
-                                 [self.x1, depth, self.z1],
-                                 [self.x2, depth, self.z1],
-                                 [self.x2, depth, self.z2],
-                                 [self.x1, depth, self.z2],
+                                 [self.x1_vxl, depth, self.z1_vxl],
+                                 [self.x2_vxl, depth, self.z1_vxl],
+                                 [self.x2_vxl, depth, self.z2_vxl],
+                                 [self.x1_vxl, depth, self.z2_vxl],
                                  ])
         elif self.axis == 'z':
             vertices = np.array([
-                                 [self.x1, self.y1, depth],
-                                 [self.x2, self.y1, depth],
-                                 [self.x2, self.y2, depth],
-                                 [self.x1, self.y2, depth],
+                                 [self.x1_vxl, self.y1_vxl, depth],
+                                 [self.x2_vxl, self.y1_vxl, depth],
+                                 [self.x2_vxl, self.y2_vxl, depth],
+                                 [self.x1_vxl, self.y2_vxl, depth],
                                  ])
 
         # Convert to real units and then scale down
