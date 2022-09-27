@@ -605,6 +605,100 @@ class CLOUDBLENDER_OP_fetch_cube(Operator):
         return {'FINISHED'}
 
 
+class CLOUDBLENDER_OP_fetch_mesh(Operator):
+    """Fetch data as slices."""
+    bl_idname = "cloudblender.fetch_mesh"
+    bl_label = 'Fetch neuron mesh'
+    bl_description = "Fetch meshes for neurons"
+
+    x: StringProperty(name="ID(s)",
+                      default='',
+                      description="ID(s) to fetch. Multiple IDs must be "
+                                  "comma- or space-separated.")
+    mip: IntProperty(name='MIP',
+                     default=0, min=0,
+                     description='Level of detail (0 = max).')
+    # ATTENTION:
+    # using check() in an operator that uses threads, will lead to segmentation faults!
+    def check(self, context):
+        return True
+
+    @classmethod
+    def poll(cls, context):
+        if VOLUME:
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+
+        box = layout.box()
+        row = box.row(align=False)
+        row.prop(self, "x")
+
+        layout.label(text="Import Options")
+        box = layout.box()
+        row.prop(self, "mip")
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        VOLUME.mip = self.mip
+        self.resolution = VOLUME.scales[self.mip]['resolution']
+
+        ids = self.x.replace(',', ' ')
+        ids = [int(i) for i in ids.split(' ')]
+
+        meshes = VOLUME.mesh.get(ids)
+
+        for m in meshes:
+            self.create_mesh(meshes[m], name=m)
+
+        return {'FINISHED'}
+
+    def create_mesh(self, mesh, name=None, mat=None, collection=None):
+        """Create mesh from MeshNeuron."""
+        if not name:
+            name = getattr(mesh, 'name', 'neuron')
+
+        # Make copy of vertices as we are potentially modifying them
+        verts = mesh.vertices.copy()
+
+        # Convert to Blender space
+        verts = verts / get_pref('scale_factor',  10_000)
+        #verts = verts[:, self.axes_order]
+        #verts *= self.ax_translate
+
+        me = bpy.data.meshes.new(f'{name} mesh')
+        ob = bpy.data.objects.new(f"{name}", me)
+        ob.location = (0, 0, 0)
+        ob.show_name = True
+
+        blender_verts = verts.tolist()
+        me.from_pydata(list(blender_verts), [], list(mesh.faces))
+        me.update()
+
+        me.polygons.foreach_set('use_smooth', [True] * len(me.polygons))
+
+        if not mat:
+            mat_name = (f'M{name}')
+            mat = bpy.data.materials.get(mat_name,
+                                         bpy.data.materials.new(mat_name))
+        ob.active_material = mat
+
+        if not collection:
+            col = bpy.context.scene.collection
+        elif collection in bpy.data.collections:
+            col = bpy.data.collections[collection]
+        else:
+            col = bpy.data.collections.new(collection)
+            bpy.context.scene.collection.children.link(col)
+
+        col.objects.link(ob)
+
+
 ########################################
 #  Utilities
 ########################################
@@ -684,6 +778,84 @@ def get_input_nodes(node, links):
     return sorted_nodes
 
 
+def get_shadeless_node(dest_node_tree):
+    """Return a "shadless" cycles/eevee node, creating a node group if nonexistent"""
+    try:
+        node_tree = bpy.data.node_groups['IAP_SHADELESS']
+
+    except KeyError:
+        # need to build node shadeless node group
+        node_tree = bpy.data.node_groups.new('IAP_SHADELESS', 'ShaderNodeTree')
+        output_node = node_tree.nodes.new('NodeGroupOutput')
+        input_node = node_tree.nodes.new('NodeGroupInput')
+
+        node_tree.outputs.new('NodeSocketShader', 'Shader')
+        node_tree.inputs.new('NodeSocketColor', 'Color')
+
+        # This could be faster as a transparent shader, but then no ambient occlusion
+        diffuse_shader = node_tree.nodes.new('ShaderNodeBsdfDiffuse')
+        node_tree.links.new(diffuse_shader.inputs[0], input_node.outputs[0])
+
+        emission_shader = node_tree.nodes.new('ShaderNodeEmission')
+        node_tree.links.new(emission_shader.inputs[0], input_node.outputs[0])
+
+        light_path = node_tree.nodes.new('ShaderNodeLightPath')
+        is_glossy_ray = light_path.outputs['Is Glossy Ray']
+        is_shadow_ray = light_path.outputs['Is Shadow Ray']
+        ray_depth = light_path.outputs['Ray Depth']
+        transmission_depth = light_path.outputs['Transmission Depth']
+
+        unrefracted_depth = node_tree.nodes.new('ShaderNodeMath')
+        unrefracted_depth.operation = 'SUBTRACT'
+        unrefracted_depth.label = 'Bounce Count'
+        node_tree.links.new(unrefracted_depth.inputs[0], ray_depth)
+        node_tree.links.new(unrefracted_depth.inputs[1], transmission_depth)
+
+        refracted = node_tree.nodes.new('ShaderNodeMath')
+        refracted.operation = 'SUBTRACT'
+        refracted.label = 'Camera or Refracted'
+        refracted.inputs[0].default_value = 1.0
+        node_tree.links.new(refracted.inputs[1], unrefracted_depth.outputs[0])
+
+        reflection_limit = node_tree.nodes.new('ShaderNodeMath')
+        reflection_limit.operation = 'SUBTRACT'
+        reflection_limit.label = 'Limit Reflections'
+        reflection_limit.inputs[0].default_value = 2.0
+        node_tree.links.new(reflection_limit.inputs[1], ray_depth)
+
+        camera_reflected = node_tree.nodes.new('ShaderNodeMath')
+        camera_reflected.operation = 'MULTIPLY'
+        camera_reflected.label = 'Camera Ray to Glossy'
+        node_tree.links.new(camera_reflected.inputs[0], reflection_limit.outputs[0])
+        node_tree.links.new(camera_reflected.inputs[1], is_glossy_ray)
+
+        shadow_or_reflect = node_tree.nodes.new('ShaderNodeMath')
+        shadow_or_reflect.operation = 'MAXIMUM'
+        shadow_or_reflect.label = 'Shadow or Reflection?'
+        node_tree.links.new(shadow_or_reflect.inputs[0], camera_reflected.outputs[0])
+        node_tree.links.new(shadow_or_reflect.inputs[1], is_shadow_ray)
+
+        shadow_or_reflect_or_refract = node_tree.nodes.new('ShaderNodeMath')
+        shadow_or_reflect_or_refract.operation = 'MAXIMUM'
+        shadow_or_reflect_or_refract.label = 'Shadow, Reflect or Refract?'
+        node_tree.links.new(shadow_or_reflect_or_refract.inputs[0], shadow_or_reflect.outputs[0])
+        node_tree.links.new(shadow_or_reflect_or_refract.inputs[1], refracted.outputs[0])
+
+        mix_shader = node_tree.nodes.new('ShaderNodeMixShader')
+        node_tree.links.new(mix_shader.inputs[0], shadow_or_reflect_or_refract.outputs[0])
+        node_tree.links.new(mix_shader.inputs[1], diffuse_shader.outputs[0])
+        node_tree.links.new(mix_shader.inputs[2], emission_shader.outputs[0])
+
+        node_tree.links.new(output_node.inputs[0], mix_shader.outputs[0])
+
+        auto_align_nodes(node_tree)
+
+    group_node = dest_node_tree.nodes.new("ShaderNodeGroup")
+    group_node.node_tree = node_tree
+
+    return group_node
+
+
 def auto_align_nodes(node_tree):
     """Given a shader node tree, arrange nodes neatly relative to the output node."""
     x_gap = 200
@@ -751,6 +923,7 @@ classes = (CLOUDBLENDER_PT_import_panel,
            CLOUDBLENDER_OP_connect,
            CLOUDBLENDER_OP_fetch_slices,
            CLOUDBLENDER_OP_fetch_cube,
+           CLOUDBLENDER_OP_fetch_mesh,
            CLOUDBLENDER_preferences)
 
 
