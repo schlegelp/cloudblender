@@ -59,7 +59,8 @@ bl_info = {
  "tracker_url": "",
  "category": "Object"}
 
-VOLUME = None
+VOLUME_IMG = None
+VOLUME_SEG = None
 
 ########################################
 #  UI Elements
@@ -86,7 +87,7 @@ class CLOUDBLENDER_PT_import_panel(Panel):
         row.alignment = 'EXPAND'
         row.operator("cloudblender.connect", text="Connect", icon='OUTLINER_DATA_CURVE')
 
-        layout.label(text='Images')
+        layout.label(text='Image')
         box = layout.box()
         row = box.row(align=True)
         row.alignment = 'EXPAND'
@@ -96,7 +97,7 @@ class CLOUDBLENDER_PT_import_panel(Panel):
         row.alignment = 'EXPAND'
         row.operator("cloudblender.fetch_cube", text="Fetch cube", icon='MESH_CUBE')
 
-        layout.label(text='Objects')
+        layout.label(text='Segmentation')
         box = layout.box()
         row = box.row(align=True)
         row.alignment = 'EXPAND'
@@ -117,8 +118,10 @@ class CLOUDBLENDER_OP_connect(Operator):
     bl_label = 'Connect to server'
     bl_description = "Connect to server"
 
-    server_url: StringProperty(name="Server URL",
-                               description="Server URL. Must include protocol (e.g. precomputed://...)")
+    server_img: StringProperty(name="Images",
+                               description="Server URL for image data. Must include protocol (e.g. precomputed://...)")
+    server_seg: StringProperty(name="Segmentation",
+                               description="Server URL for segmentation data. Must include protocol (e.g. precomputed://...)")
     max_threads: IntProperty(name='Max Threads',
                              min=1,
                              description='Max number of parallel threads.')
@@ -128,7 +131,9 @@ class CLOUDBLENDER_OP_connect(Operator):
     def draw(self, context):
         layout = self.layout
         row = layout.row(align=True)
-        row.prop(self, "server_url")
+        row.prop(self, "server_img")
+        row = layout.row(align=True)
+        row.prop(self, "server_seg")
         row = layout.row(align=False)
         row.prop(self, "max_threads")
         row = layout.row(align=False)
@@ -136,20 +141,37 @@ class CLOUDBLENDER_OP_connect(Operator):
         layout.label(text="Use Addon preferences to set persistent server url, credentials, etc.")
 
     def invoke(self, context, event):
-        self.server_url = get_pref('server_url', 'precomputed://https://bossdb-open-data.s3.amazonaws.com/iarpa_microns/minnie/minnie65/em')
+        self.server_img = get_pref('server_img', 'precomputed://https://bossdb-open-data.s3.amazonaws.com/iarpa_microns/minnie/minnie65/em')
+        self.server_seg = get_pref('server_seg', 'precomputed://gs://iarpa_microns/minnie/minnie65/seg')
         self.max_threads = get_pref('max_threads', 10)
         self.use_https = get_pref('use_https', True)
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        print('Connecting to server')
-        print('URL: %s' % self.server_url)
+        global VOLUME_IMG
+        if self.server_img:
+            print('Connecting to image server')
+            print('URL: %s' % self.server_img)
 
-        global VOLUME
-        VOLUME = cv.CloudVolume(self.server_url,
-                                progress=True,
-                                use_https=self.use_https,
-                                parallel=self.max_threads)
+            VOLUME_IMG = cv.CloudVolume(self.server_img,
+                                        progress=True,
+                                        use_https=self.use_https,
+                                        parallel=self.max_threads)
+        else:
+            VOLUME_IMG = None
+
+        global VOLUME_SEG
+        if self.server_img:
+            print('Connecting to segmentation server')
+            print('URL: %s' % self.server_img)
+
+            VOLUME_SEG = cv.CloudVolume(self.server_seg,
+                                        progress=True,
+                                        use_https=self.use_https,
+                                        parallel=self.max_threads)
+        else:
+            VOLUME_SEG = None
+
 
         return {'FINISHED'}
 
@@ -209,7 +231,7 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
 
     @classmethod
     def poll(cls, context):
-        if VOLUME:
+        if VOLUME_IMG:
             return True
         else:
             return False
@@ -237,7 +259,7 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
         row = box.row(align=False)
         row.prop(self, "mip")
         row = box.row(align=False)
-        res = ' x '.join(np.array(VOLUME.meta.scale(self.mip)['resolution']).astype(str))
+        res = ' x '.join(np.array(VOLUME_IMG.meta.scale(self.mip)['resolution']).astype(str))
         row.label(text=f"Voxel res: {res}")
 
         row = box.row(align=False)
@@ -247,8 +269,8 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        VOLUME.mip = self.mip
-        self.resolution = VOLUME.scales[self.mip]['resolution']
+        VOLUME_IMG.mip = self.mip
+        self.resolution = VOLUME_IMG.scales[self.mip]['resolution']
 
         self.axis_ix = {'x': 0,
                         'y': 1,
@@ -274,8 +296,15 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
             self.z1_vxl = self.z1
             self.z2_vxl = self.z2
 
+        if self.x1_vxl == self.x2_vxl:
+            self.x2_vxl += 1
+        if self.y1_vxl == self.y2_vxl:
+            self.y2_vxl += 1
+        if self.z1_vxl == self.z2_vxl:
+            self.z2_vxl += 1
+
         # Fetch the data
-        data = VOLUME[self.x1_vxl: self.x2_vxl,
+        data = VOLUME_IMG[self.x1_vxl: self.x2_vxl,
                       self.y1_vxl: self.y2_vxl,
                       self.z1_vxl: self.z2_vxl]
         data = np.array(data)
@@ -321,7 +350,7 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
 
     def create_cycles_material(self, context, image):
         material = None
-        name = f'{self.x1}_{self.x2}_{self.y1}_{self.y2}_{self.z1}_{self.z2}'
+        name = f'{self.x1}_{self.x2}_{self.y1}_{self.y2}_{self.z1}_{self.z2}_mip{self.mip}'
         if self.overwrite_material:
             for mat in bpy.data.materials:
                 if mat.name == name:
@@ -356,8 +385,8 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
         image_src = bpy.data.images.new('src', image.shape[0], image.shape[1])
 
         # Normalize image
-        if VOLUME.meta.layer_type == 'image':
-            image = image / np.iinfo(VOLUME.meta.dtype).max
+        if VOLUME_IMG.meta.layer_type == 'image':
+            image = image / np.iinfo(VOLUME_IMG.meta.dtype).max
 
         # Need to invert the image rows
         image = image[::-1, ::-1]
@@ -482,7 +511,7 @@ class CLOUDBLENDER_OP_fetch_cube(Operator):
 
     @classmethod
     def poll(cls, context):
-        if VOLUME:
+        if VOLUME_IMG:
             return True
         else:
             return False
@@ -508,7 +537,7 @@ class CLOUDBLENDER_OP_fetch_cube(Operator):
         row = box.row(align=False)
         row.prop(self, "mip")
         row = box.row(align=False)
-        res = ' x '.join(np.array(VOLUME.meta.scale(self.mip)['resolution']).astype(str))
+        res = ' x '.join(np.array(VOLUME_IMG.meta.scale(self.mip)['resolution']).astype(str))
         row.label(text=f"Voxel res: {res}")
 
         row = box.row(align=False)
@@ -625,7 +654,7 @@ class CLOUDBLENDER_OP_fetch_mesh(Operator):
 
     @classmethod
     def poll(cls, context):
-        if VOLUME:
+        if VOLUME_SEG:
             return True
         else:
             return False
@@ -639,19 +668,20 @@ class CLOUDBLENDER_OP_fetch_mesh(Operator):
 
         layout.label(text="Import Options")
         box = layout.box()
+        row = box.row(align=False)
         row.prop(self, "mip")
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        VOLUME.mip = self.mip
-        self.resolution = VOLUME.scales[self.mip]['resolution']
+        VOLUME_SEG.mip = self.mip
+        self.resolution = VOLUME_SEG.scales[self.mip]['resolution']
 
         ids = self.x.replace(',', ' ')
-        ids = [int(i) for i in ids.split(' ')]
+        ids = [int(i) for i in ids.split(' ') if i.strip()]
 
-        meshes = VOLUME.mesh.get(ids)
+        meshes = VOLUME_SEG.mesh.get(ids)
 
         for m in meshes:
             self.create_mesh(meshes[m], name=m)
