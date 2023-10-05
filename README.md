@@ -6,7 +6,7 @@ any data source that `cloud-volume` understands.
 
 - [x] import image data as planes/cubes
 - [ ] import segmentation data as planes/cubes
-- [ ] import meshes
+- [x] import meshes
 - [ ] import skeletons
 
 
