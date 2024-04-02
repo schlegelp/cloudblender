@@ -223,6 +223,10 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
             return False
 
     def draw(self, context):
+        scale = VOLUME_IMG.meta.scale(self.mip)
+        lower_bounds = np.array(scale['voxel_offset'])
+        upper_bounds = np.array(scale['size']) + lower_bounds
+
         layout = self.layout
 
         box = layout.box()
@@ -230,11 +234,20 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
         row.prop(self, "x1")
         row.prop(self, "x2")
         row = box.row(align=False)
+        row.label(text=f"Min: {lower_bounds[0]}")
+        row.label(text=f"Max: {upper_bounds[0]}")
+        row = box.row(align=False)
         row.prop(self, "y1")
         row.prop(self, "y2")
         row = box.row(align=False)
+        row.label(text=f"Min: {lower_bounds[1]}")
+        row.label(text=f"Max: {upper_bounds[1]}")
+        row = box.row(align=False)
         row.prop(self, "z1")
         row.prop(self, "z2")
+        row = box.row(align=False)
+        row.label(text=f"Min: {lower_bounds[2]}")
+        row.label(text=f"Max: {upper_bounds[2]}")
 
         layout.label(text="Import Options")
         box = layout.box()
@@ -244,8 +257,10 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
         row.prop(self, "axis")
         row = box.row(align=False)
         row.prop(self, "mip")
+
+        scale = VOLUME_IMG.meta.scale(self.mip)
+        res = ' x '.join(np.array(scale['resolution']).astype(str))
         row = box.row(align=False)
-        res = ' x '.join(np.array(VOLUME_IMG.meta.scale(self.mip)['resolution']).astype(str))
         row.label(text=f"Voxel res: {res}")
 
         row = box.row(align=False)
