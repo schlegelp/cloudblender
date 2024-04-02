@@ -16,30 +16,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import bmesh
 import bpy
-import collections
-import colorsys
-import json
-import math
-import re
-import requests
-import time
-import urllib
 
 import numpy as np
 import cloudvolume as cv
 
 from bpy.types import Panel, Operator, AddonPreferences
-from bpy.props import (FloatVectorProperty, FloatProperty, StringProperty,
-                       BoolProperty, EnumProperty, IntProperty,
-                       CollectionProperty)
+from bpy.props import (StringProperty,
+                       BoolProperty, EnumProperty, IntProperty)
 from bpy_extras.io_utils import orientation_helper, axis_conversion
 from mathutils import Matrix
-
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from requests.exceptions import HTTPError
 
 
 ########################################
