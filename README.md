@@ -14,7 +14,6 @@ any data source that `cloud-volume` understands.
   <img src="_static/banner.png" alt="image" style="width: 100%;" />
 </div>
 
-
 ## Installation
 
 ### Download `cloublender.py`
@@ -54,12 +53,12 @@ Use either your terminal or a Git client to clone the repository.
 
 When you first run the addon, you will need to install the `cloud-volume` Python package.
 
-Open up the right sidebar in Blender (press `N` if it's not visible) and navigate to the "Cloud Volume" tab. If `cloud-volume` is not installed, you will see a button to install it.
+Open up the right sidebar in Blender (press `N` if it's not visible) and navigate to the "CloudBlender" tab. If `cloud-volume` is not installed, you will see a button to install it.
 Click on it and wait for the installation to complete.
 
-<div style="width: 20%; margin: auto;">
-  <img src="_static/install_cloudvolume.png" alt="image" style="width: 100%;" />
-</div>
+<p align="center">
+  <img src="_static/install_cloudvolume.png" alt="image" style="width: 20%;" />
+</p>
 
 Once the installation is complete, the greyed-out buttons will become active, and you can start using the addon.
 
@@ -68,10 +67,10 @@ Once the installation is complete, the greyed-out buttons will become active, an
 ### Connecting to a Data Source
 At the beginning of the session, only the "Connect" button is active. Click it to connect to the cloud volume server.
 
-<div style="display: flex; justify-content: center; gap: 10px; width: 40%; margin: auto;">
-  <img src="_static/connect.png" alt="image" style="width: 50%;" />
-  <img src="_static/connect2.png" alt="image" style="width: 50%;" />
-</div>
+<p align="center">
+  <img src="_static/connect.png" alt="image" style="width: 20%;" />
+  <img src="_static/connect2.png" alt="image" style="width: 20%;" />
+</p>
 
 The prompt will ask you to add a sources for images and segmentation for your dataset. You don't have to provide both, but you need at least one of them.
 The default sources point to the [MICrONS dataset](https://ngl.microns-explorer.org/#!gs://microns-static-links/mm3/explore.json).
@@ -80,9 +79,9 @@ The default sources point to the [MICrONS dataset](https://ngl.microns-explorer.
 
 Currently, you can load image data either as individual planes or as a cube. Overlaying the segmentation data on top of the image data is also supported.
 
-<div style="width: 20%; margin: auto;">
-  <img src="_static/cube.png" alt="image" style="width: 100%;" />
-</div>
+<p align="center">
+  <img src="_static/cube.png" alt="image" style="width: 20%;" />
+</p>
 
 The dialog will ask you to specify start and end coordinates for the cube/slices which you can either give in voxels or in world coordinates.
 
@@ -97,9 +96,9 @@ match the new position of the slice. Please note that this function is still exp
 
 Meshes for neurons can be loaded by clicking the "Load meshes" button. To load a neuron you must provide its segmentation ID. Multiple IDs can be provided as a comma-separated list.
 
-<div style="width: 20%; margin: auto;">
-  <img src="_static/neuron_mesh.png" alt="image" style="width: 100%;" />
-</div>
+<p align="center">
+  <img src="_static/neuron_mesh.png" alt="image" style="width: 20%;" />
+</p>
 
 ### Coloring Neurons
 
