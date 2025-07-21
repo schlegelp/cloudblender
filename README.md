@@ -1,42 +1,106 @@
 # cloudblender [WIP]
-Blender wrapper for [`cloud-volume`](https://github.com/seung-lab/cloud-volume)
+Blender wrapper for [`cloud-volume`](https://github.com/seung-lab/cloud-volume).
 
 The basic idea is to let you import image data, skeletons and meshes from
 any data source that `cloud-volume` understands.
 
 - [x] import image data as planes/cubes
-- [ ] import segmentation data as planes/cubes
+- [x] import segmentation data as planes/cubes
 - [x] import meshes
 - [ ] import skeletons
 
 
+<div style="width: 100%; margin: auto;">
+  <img src="_static/banner.png" alt="image" style="width: 100%;" />
+</div>
+
+
 ## Installation
 
-First you need to install `cloud-volume` for Blender's Python: open Blender
-and in "scripting" use below code to find the executable for Python
+### Download `cloublender.py`
 
-```Python
->>> import sys
->>> sys.executable
-'/Applications/Blender.app/Contents/Resources/3.0/python/bin/python3.9'
-```
+For this you have three options:
 
-Next, open a terminal and run this:
+#### 1. Download the entire repository
+Clicking on "Code" -> "Download ZIP" and extract the contents somewhere on your computer.
 
-```bash
-$ /Applications/Blender.app/Contents/Resources/3.0/python/bin/python3.9 -m pip install cloud-volume
-```
+<div style="width: 50%; margin: auto;">
+  <img src="_static/download1.png" alt="image" style="width: 100%;" />
+</div>
 
-In an ideal world the install will just work but that's hardly ever the case.
-Some issues I encountered:
+#### 2. Download the `cloudblender.py` file directly
 
-- `pip` not installed: this is actually easy enough to fix (just Google it).
-- `cloud-volume` dependencies need to be compiled from source and that fails:
-  this is a pain in the a** in particular because Blender ships Python without
-  the header files. I had the most success by building wheels for the missing
-  dependencies on my system's Python (must be same version) and then use those
-  wheels with Blender's Python.  
+Click on `cloudblender.py` in the file tree above. Then right-click on the Raw button and select "Save link as...".
 
-Finally: download `cloudblender.py`, fire up Blender, go to "Edit" -> "Preferences"
--> "Add-ons" -> "Install" and select the file. Make sure to activate the
-add-on.
+<div style="width: 50%; margin: auto;">
+  <img src="_static/download2.png" alt="image" style="width: 100%;" />
+</div>
+
+#### 3. Clone the repository
+
+Use either your terminal or a Git client to clone the repository.
+
+### Install the Addon
+
+1. Fire up Blender and navigate to "Edit" -> "Preferences" -> "Add-ons".
+2. Click "Install" and select the `cloudblender.py` file you downloaded in the previous step.
+3. Make sure to activate the add-on by checking the box next to it (you can search for "cloudblender" in the search bar).
+
+<div style="width: 50%; margin: auto;">
+  <img src="_static/install_addon.png" alt="image" style="width: 100%;" />
+</div>
+
+### Install `cloud-volume`
+
+When you first run the addon, you will need to install the `cloud-volume` Python package.
+
+Open up the right sidebar in Blender (press `N` if it's not visible) and navigate to the "Cloud Volume" tab. If `cloud-volume` is not installed, you will see a button to install it.
+Click on it and wait for the installation to complete.
+
+<div style="width: 20%; margin: auto;">
+  <img src="_static/install_cloudvolume.png" alt="image" style="width: 100%;" />
+</div>
+
+Once the installation is complete, the greyed-out buttons will become active, and you can start using the addon.
+
+## Usage
+
+### Connecting to a Data Source
+At the beginning of the session, only the "Connect" button is active. Click it to connect to the cloud volume server.
+
+<div style="display: flex; justify-content: center; gap: 10px; width: 40%; margin: auto;">
+  <img src="_static/connect.png" alt="image" style="width: 50%;" />
+  <img src="_static/connect2.png" alt="image" style="width: 50%;" />
+</div>
+
+The prompt will ask you to add a sources for images and segmentation for your dataset. You don't have to provide both, but you need at least one of them.
+The default sources point to the [MICrONS dataset](https://ngl.microns-explorer.org/#!gs://microns-static-links/mm3/explore.json).
+
+### Loading Image Data
+
+Currently, you can load image data either as individual planes or as a cube. Overlaying the segmentation data on top of the image data is also supported.
+
+<div style="width: 20%; margin: auto;">
+  <img src="_static/cube.png" alt="image" style="width: 100%;" />
+</div>
+
+The dialog will ask you to specify start and end coordinates for the cube/slices which you can either give in voxels or in world coordinates.
+
+### Updating Image Data (experimental)
+
+Once you imported a slice or a cube*, you can move/scale it within the bounds of the volume. Pressing the "Update images" buttin should update the image data to
+match the new position of the slice. Please note that this function is still experimental and may not always work as expected.
+
+*_a cube is just a bunch of slices_
+
+### Loading Neuron Meshes
+
+Meshes for neurons can be loaded by clicking the "Load meshes" button. To load a neuron you must provide its segmentation ID. Multiple IDs can be provided as a comma-separated list.
+
+<div style="width: 20%; margin: auto;">
+  <img src="_static/neuron_mesh.png" alt="image" style="width: 100%;" />
+</div>
+
+### Coloring Neurons
+
+Clicking the "Color neurons" button will color all loaded neuron meshes according to their segmentation ID. Colors should match the colors used in the segmentation data.
