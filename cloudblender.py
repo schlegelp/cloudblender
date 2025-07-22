@@ -109,7 +109,7 @@ else:
 bl_info = {
     "name": "Cloudblender",
     "author": "Philipp Schlegel",
-    "version": (0, 1, 0),
+    "version": (0, 1, 1),
     "blender": (2, 80, 0),  # this MUST be 2.80.0 (i.e. not 2.9x)
     "location": "View3D > Sidebar (N) > CATMAID",
     "description": "Imports data via cloud-volume",
