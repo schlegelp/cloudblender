@@ -20,8 +20,8 @@ import sys
 import bpy
 import site
 import colorsys
-import fastremap
 import subprocess
+import importlib.util
 
 import numpy as np
 
@@ -87,10 +87,19 @@ def display_message(message, title="Notification", icon="INFO"):
 modules_path = get_modules_path()
 append_modules_to_sys_path(modules_path)
 
-try:
+
+if importlib.util.find_spec("cloudvolume"):
     import cloudvolume as cv
-except ModuleNotFoundError:
+else:
+    # If cloudvolume is not installed, we set it to None
     cv = None
+
+if importlib.util.find_spec("fastremap"):
+    import fastremap
+else:
+    # If cloudvolume is not installed, we set it to None
+    fastremap = None
+
 
 ########################################
 #  Settings
@@ -202,16 +211,19 @@ class CLOUDBLENDER_OP_install(Operator):
     bl_description = "Install cloud-volume and other required packages"
 
     def execute(self, context):
-        global cv
+        global cv, fastremap
 
         install_package("cloud-volume", modules_path)
+        install_package("fastremap", modules_path)
 
         import cloudvolume
+        import fastremap as fr
 
         cv = cloudvolume
+        fastremap = fr
 
         display_message(
-            "Cloud-volume installed successfully!",
+            "Install successful!",
         )
 
         return {"FINISHED"}
@@ -347,7 +359,7 @@ class CLOUDBLENDER_OP_show_bounds(Operator):
 
     @classmethod
     def poll(cls, context):
-        if not cv:
+        if not cv or not fastremap:
             return False
         if VOLUME_IMG:
             return True
@@ -472,7 +484,7 @@ class CLOUDBLENDER_OP_fetch_slices(Operator):
 
     @classmethod
     def poll(cls, context):
-        if not cv:
+        if not cv or not fastremap:
             return False
         if VOLUME_IMG:
             return True
@@ -858,7 +870,7 @@ class CLOUDBLENDER_OP_fetch_cube(Operator):
 
     @classmethod
     def poll(cls, context):
-        if not cv:
+        if not cv or not fastremap:
             return False
         if VOLUME_IMG:
             return True
@@ -1008,7 +1020,7 @@ class CLOUDBLENDER_OP_update_images(Operator):
     # ATTENTION:
     # using check() in an operator that uses threads, will lead to segmentation faults!
     def check(self, context):
-        if not cv:
+        if not cv or not fastremap:
             return False
         return True
 
@@ -1312,7 +1324,7 @@ class CLOUDBLENDER_OP_fetch_mesh(Operator):
 
     @classmethod
     def poll(cls, context):
-        if not cv:
+        if not cv or not fastremap:
             return False
         if VOLUME_SEG:
             return True
@@ -1406,7 +1418,7 @@ class CLOUDBLENDER_OP_color_neurons(Operator):
 
     @classmethod
     def poll(cls, context):
-        if not cv:
+        if not cv or not fastremap:
             return False
         return True
 
@@ -1431,8 +1443,12 @@ class CLOUDBLENDER_OP_color_neurons(Operator):
             if hasattr(mat, "node_tree") and "Principled BSDF" in mat.node_tree.nodes:
                 # If we have a Principled BSDF, set the base color
                 # This is necessary for Cycles rendering
-                mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (color[0], color[1], color[2], 1)
-
+                mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (
+                    color[0],
+                    color[1],
+                    color[2],
+                    1,
+                )
 
         return {"FINISHED"}
 
