@@ -1,6 +1,7 @@
 """Blender plugin to import data via cloud-volume.
 
 Copyright (C) Philipp Schlegel, 2022.
+Updates Jordan Matelsky 2026.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -313,9 +314,9 @@ class CLOUDBLENDER_OP_connect(Operator):
             VOLUME_IMG = None
 
         global VOLUME_SEG
-        if self.server_img:
+        if self.server_seg:
             print("Connecting to segmentation server")
-            print("URL: %s" % self.server_img)
+            print("URL: %s" % self.server_seg)
 
             VOLUME_SEG = cv.CloudVolume(
                 self.server_seg,
