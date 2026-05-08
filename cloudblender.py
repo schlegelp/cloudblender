@@ -313,9 +313,9 @@ class CLOUDBLENDER_OP_connect(Operator):
             VOLUME_IMG = None
 
         global VOLUME_SEG
-        if self.server_img:
+        if self.server_seg:
             print("Connecting to segmentation server")
-            print("URL: %s" % self.server_img)
+            print("URL: %s" % self.server_seg)
 
             VOLUME_SEG = cv.CloudVolume(
                 self.server_seg,
