@@ -1,7 +1,6 @@
 """Blender plugin to import data via cloud-volume.
 
 Copyright (C) Philipp Schlegel, 2022.
-Updates Jordan Matelsky 2026.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
